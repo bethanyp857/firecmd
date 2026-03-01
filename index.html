@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fire Command — Shady Grove VFD</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- v3.1 -->
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff4500">
@@ -20,7 +24,8 @@
   import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,
     signOut,onAuthStateChanged,updatePassword}
     from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-  import{getFirestore,doc,getDoc,setDoc,collection,getDocs,deleteDoc,serverTimestamp,writeBatch}
+  import{getFirestore,doc,getDoc,setDoc,collection,getDocs,deleteDoc,
+    onSnapshot,query,serverTimestamp,writeBatch}
     from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
   const cfg={
@@ -53,6 +58,9 @@
   window.fbDeleteDoc=window.fbDelDoc;
   // Get all docs in a collection path
   window.fbGetCol  =(path)=>getDocs(collection(DB,...seg(path)));
+  window.fbListen  =(path,cb)=>onSnapshot(collection(DB,...seg(path)),snap=>{
+    const docs=[]; snap.forEach(d=>docs.push({...d.data()})); cb(docs);
+  });
   window.fbBatch   =()=>writeBatch(DB);
   window.fbDoc2    =(path)=>doc(DB,...seg(path));
   window.fbTS      =()=>serverTimestamp();
@@ -61,7 +69,48 @@
   document.dispatchEvent(new Event('fb-ready'));
 </script>
 <style>
-:root{--bg:#0a0a0c;--bg2:#111114;--card:#16161a;--elev:#1e1e24;--bdr:#2a2a35;--bdr2:#3a3a48;--fire:#ff4500;--fire2:#ff6a00;--glow:rgba(255,69,0,.15);--amb:#ffb300;--grn:#00e676;--red:#ff1744;--blu:#2979ff;--pur:#aa00ff;--tel:#00bcd4;--txt:#f0f0f5;--txt2:#8888a0;--txtm:#555568;--fd:'Bebas Neue',sans-serif;--fb:'Rajdhani',sans-serif;--fm:'Share Tech Mono',monospace;}
+:root{
+  --bg:#0a0a0c;--bg2:#111114;--card:#16161a;--elev:#1e1e24;
+  --bdr:#2a2a35;--bdr2:#3a3a48;
+  --fire:#ff4500;--fire2:#ff6a00;--glow:rgba(255,69,0,.15);
+  --amb:#ffb300;--grn:#00e676;--red:#ff1744;--blu:#2979ff;--pur:#aa00ff;--tel:#00bcd4;
+  --txt:#ffffff;--txt2:#ccccdd;--txtm:#9999b0;
+  --fd:'Bebas Neue',sans-serif;--fb:'Rajdhani',sans-serif;--fm:'Share Tech Mono',monospace;
+  --mode-transition:background .25s,color .25s,border-color .25s;
+}
+/* ── LIGHT MODE ── */
+body.light-mode{
+  --bg:#ffffff;--bg2:#f4f4f6;--card:#ffffff;--elev:#eeeeef;
+  --bdr:#d0d0da;--bdr2:#b0b0be;
+  --glow:rgba(255,69,0,.08);
+  --txt:#0a0a0c;--txt2:#333344;--txtm:#666677;
+}
+body.light-mode .lcard,
+body.light-mode .tcard,
+body.light-mode .mcard,
+body.light-mode .sc,
+body.light-mode .md{background:#ffffff;border-color:#d0d0da;}
+body.light-mode .sb,
+body.light-mode .mob-nav,
+body.light-mode .mob-more-sheet{background:#f4f4f6;border-color:#d0d0da;}
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea{background:#f9f9fb;border-color:#c0c0ce;color:#0a0a0c;}
+body.light-mode select option{background:#ffffff;color:#0a0a0c;}
+body.light-mode .ni{color:var(--txt2);}
+body.light-mode .ni.on{color:var(--fire);background:rgba(255,69,0,.06);}
+body.light-mode .mob-nav-item{color:var(--txt2);}
+body.light-mode .mob-nav-item.on{color:var(--fire);}
+body.light-mode .mob-more-item{background:#ffffff;border-color:#d0d0da;color:var(--txt2);}
+body.light-mode .toast{background:#ffffff;border:1px solid #d0d0da;color:#0a0a0c;}
+body.light-mode .blogout{color:var(--txtm);}
+body.light-mode table{background:#ffffff;}
+body.light-mode tr:hover{background:rgba(0,0,0,.03);}
+body.light-mode .aitem:hover{background:rgba(0,0,0,.02);}
+body.light-mode .phero{background:linear-gradient(135deg,rgba(255,69,0,.06),rgba(255,106,0,.03));}
+body.light-mode .pcard{background:#f9f9fb;border-color:#d0d0da;}
+body.light-mode .badge{opacity:.9;}
+body,*{transition:var(--mode-transition);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--txt);font-family:var(--fb);font-size:15px;min-height:100vh;overflow-x:hidden;}
 .screen{display:none;min-height:100vh;}.screen.on{display:flex;}
@@ -313,6 +362,16 @@ textarea{resize:vertical;min-height:80px;}
 .place-hint{background:rgba(255,69,0,.12);border:1px solid rgba(255,69,0,.3);border-radius:3px;padding:6px 12px;font-family:var(--fm);font-size:11px;color:var(--fire);letter-spacing:1px;animation:pulse2 1.5s ease-in-out infinite;}
 @keyframes pulse2{0%,100%{opacity:1}50%{opacity:.6}}
 /* RESPONSIVE */
+/* ── TOGGLE SWITCH ── */
+.toggle-switch{position:relative;display:inline-block;width:52px;height:28px;flex-shrink:0;}
+.toggle-switch input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--elev);
+  border:1px solid var(--bdr2);border-radius:28px;transition:.25s;}
+.toggle-slider:before{content:'';position:absolute;width:20px;height:20px;
+  left:3px;bottom:3px;background:var(--txtm);border-radius:50%;transition:.25s;}
+.toggle-switch input:checked + .toggle-slider{background:var(--fire);border-color:var(--fire);}
+.toggle-switch input:checked + .toggle-slider:before{transform:translateX(24px);background:#fff;}
+
 /* ═══ MOBILE BOTTOM NAV ═══ */
 .mob-nav{position:fixed;bottom:0;left:0;right:0;z-index:900;
   background:var(--bg2);border-top:1px solid var(--bdr);
@@ -558,6 +617,7 @@ textarea{resize:vertical;min-height:80px;}
     <div class="sbu" onclick="go('userpro',null)" title="My Profile">
       <div class="ua" id="sbav">—</div>
       <div class="ui"><div class="un" id="sbnm">—</div><div class="ur" id="sbrole">—</div></div>
+
       <button class="blogout" onclick="event.stopPropagation();doLogout()" title="Logout">⏻</button>
     </div>
   </nav>
@@ -598,6 +658,8 @@ textarea{resize:vertical;min-height:80px;}
       <span class="mni">📝</span><span>Grants</span></div>
     <div class="mob-more-item" id="mni-userpro" onclick="mobGo('userpro','mni-userpro')">
       <span class="mni">👤</span><span>My Profile</span></div>
+    <div class="mob-more-item" id="mob-theme-item" onclick="toggleTheme(!document.body.classList.contains('light-mode'));syncThemeToggle()">
+      <span class="mni" id="mob-theme-icon">☀️</span><span id="mob-theme-txt">Light Mode</span></div>
     <div class="mob-more-item" style="border-color:var(--red);color:var(--red)" onclick="doLogout()">
       <span class="mni">⏻</span><span>Sign Out</span></div>
   </div>
@@ -752,7 +814,19 @@ textarea{resize:vertical;min-height:80px;}
 
     <!-- USER PROFILE -->
     <div id="pg-userpro" class="pg">
-      <div class="ph"><div><div class="pt">MY <span>PROFILE</span></div><div class="ps">PERSONAL ACCOUNT SETTINGS</div></div></div>
+      <div class="ph">
+        <div><div class="pt">MY <span>PROFILE</span></div><div class="ps">PERSONAL ACCOUNT SETTINGS</div></div>
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+          <div style="text-align:right">
+            <div style="font-family:var(--fm);font-size:10px;color:var(--txtm);letter-spacing:2px;text-transform:uppercase">Display</div>
+            <div style="font-size:12px;color:var(--txt2);margin-top:2px" id="theme-label">🌑 Dark</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
       <div class="phero">
         <div class="phero-inner">
           <div style="position:relative">
@@ -829,6 +903,10 @@ textarea{resize:vertical;min-height:80px;}
     <div id="pg-pers" class="pg">
       <div class="ph"><div><div class="pt">PERSON<span>NEL</span></div><div class="ps">DEPARTMENT ROSTER</div></div><div class="pa" id="pers-act"></div></div>
       <div id="pers-note" class="ronly" style="display:none">🔒 Read-only — contact admin to make changes</div>
+      <div id="pers-sync-banner" style="display:none;background:rgba(255,179,0,.1);border:1px solid var(--amb);border-radius:4px;padding:12px 16px;margin-bottom:14px;font-family:var(--fm);font-size:12px;color:var(--amb)">
+        ⚠ Some members may not be synced to the cloud yet.
+        <button class="btn bp bsm" style="margin-left:12px" onclick="forceSyncPersonnel()">🔄 Sync All Members Now</button>
+      </div>
       <div class="pgrid" id="pers-grid"></div>
     </div>
 
@@ -1234,41 +1312,86 @@ async function fbGetDoc2(path){
 async function fbSetDoc2(path,data){
   await window.fbSetDoc(path,data,{merge:true});
 }
+// ═══════════════════════════════════════════
+// REAL-TIME DATA LAYER
+// Every collection has a live onSnapshot listener.
+// Any write on any device instantly updates every other device.
+// ═══════════════════════════════════════════
+
+const _unsubs={}; // holds unsubscribe functions for all listeners
+
+// Start a live listener on a dept sub-collection
+function listenCol(col, onUpdate){
+  if(_unsubs[col]) _unsubs[col](); // cancel existing
+  if(!CU?.deptId) return;
+  const path=`depts/${CU.deptId}/${col}`;
+  _unsubs[col]=window.fbListen(path,(docs)=>{
+    _cache[col]=docs;
+    if(onUpdate) onUpdate(docs);
+  });
+}
+
+// Stop all listeners (on logout)
+function stopAllListeners(){
+  Object.values(_unsubs).forEach(u=>{ try{u();}catch(e){} });
+  Object.keys(_unsubs).forEach(k=>delete _unsubs[k]);
+  if(_persUnsub){ try{_persUnsub();}catch(e){} _persUnsub=null; }
+}
+
+// One-time load of a collection (used only for initial data before listeners start)
 async function fbLoadCol(col){
   if(!CU?.deptId) return [];
   const path=`depts/${CU.deptId}/${col}`;
   const snap=await window.fbGetCol(path);
-  const data=[]; snap.forEach(d=>data.push({...d.data()}));
+  const data=[]; snap.forEach(d=>data.push({id:d.id,...d.data()}));
   _cache[col]=data; return data;
 }
-async function fbSaveRecord(col,rec){
-  if(!CU?.deptId) return;
-  await window.fbSetDoc(`depts/${CU.deptId}/${col}/${rec.id}`,rec,{merge:true});
+
+async function fbSaveRecord(col,rec,deptId){
+  const did=deptId||CU?.deptId; if(!did) return;
+  await window.fbSetDoc(`depts/${did}/${col}/${rec.id}`,rec,{merge:true});
 }
-async function fbDelRecord(col,id){
-  if(!CU?.deptId) return;
-  await window.fbDelDoc(`depts/${CU.deptId}/${col}/${id}`);
+async function fbDelRecord(col,id,deptId){
+  const did=deptId||CU?.deptId; if(!did) return;
+  await window.fbDelDoc(`depts/${did}/${col}/${id}`);
 }
 
 // ── Dept/User Firestore ops ──
-async function fbLoadDept(deptId){
-  return fbGetDoc2(`depts/${deptId}`);
-}
-async function fbSaveDept(dept){
-  await window.fbSetDoc(`depts/${dept.id}`,dept,{merge:true});
-}
-async function fbLoadUser(uid){
-  return fbGetDoc2(`users/${uid}`);
-}
-async function fbSaveUser(user){
-  await window.fbSetDoc(`users/${user.id}`,user,{merge:true});
-}
+async function fbLoadDept(deptId){ return fbGetDoc2(`depts/${deptId}`); }
+async function fbSaveDept(dept){ await window.fbSetDoc(`depts/${dept.id}`,dept,{merge:true}); }
+async function fbLoadUser(uid){ return fbGetDoc2(`users/${uid}`); }
+async function fbSaveUser(user){ await window.fbSetDoc(`users/${user.id}`,user,{merge:true}); }
 
-// Load all sub-collections for current dept into cache
+// Initial one-time load of all dept collections
 async function loadAllDeptData(){
   const cols=['incidents','drones','minutes','events','equipment',
-              'maintenance','personnel','finance','fundraisers','grants'];
+              'maintenance','finance','fundraisers','grants'];
   await Promise.all(cols.map(c=>fbLoadCol(c)));
+}
+
+// Start live listeners on ALL dept collections after login
+// Each listener keeps its collection in _cache and re-renders the right page
+function startAllListeners(){
+  stopAllListeners();
+
+  const reRenderMap={
+    incidents: ()=>{ rInc(); updateDashStats(); if(leafletMap) setTimeout(refreshMap,300); },
+    drones:    ()=>{ rDrone(); updateDashStats(); },
+    minutes:   ()=>{ rMin(); updateDashStats(); },
+    events:    ()=>{ rEvt(); rDashEvts(); },
+    equipment: ()=>{ rEquip(); updateDashStats(); },
+    maintenance:()=>{ rMaint(); rDashMaint(); },
+    finance:   ()=>{ if(CU?.isAdmin) rFin(); },
+    fundraisers:()=>{ rFr(); },
+    grants:    ()=>{ rGr(); },
+  };
+
+  Object.entries(reRenderMap).forEach(([col,fn])=>{
+    listenCol(col, ()=>{ try{ fn(); }catch(e){} });
+  });
+
+  // Personnel listener — reads from users collection
+  startPersonnelListener();
 }
 
 // ── Sync-compatible accessors (same API as before) ──
@@ -1289,7 +1412,8 @@ function upsertRecord(key,rec){
   const idx=arr.findIndex(r=>r.id===rec.id);
   if(idx>=0) arr[idx]=rec; else arr.unshift(rec);
   _cache[key]=arr;
-  fbSaveRecord(key,rec).catch(e=>toast('Sync error: '+e.message,'err'));
+  // Pass rec.deptId as fallback so saves work even before CU is set
+  fbSaveRecord(key,rec,rec.deptId).catch(e=>toast('Sync error: '+e.message,'err'));
 }
 function deleteRecord(key,id){
   _cache[key]=(_cache[key]||[]).filter(r=>r.id!==id);
@@ -1449,27 +1573,62 @@ function showRegSummary(){
 async function finalRegister(){
   try{
     toast('Creating your account...','');
+
+    // Step 1: Create Firebase Auth account
     const cred=await window.fbSignUp(regData.em, regData.pw);
     const uid=cred.user.uid;
+    toast('Account created — saving your profile...','');
+
+    // Step 2: Save new department if creating one
     if(regData.creatingDept&&regData.newDept){
       await fbSaveDept(regData.newDept);
       _cache['__depts']=[regData.newDept];
     }
-    const newUser={id:uid,f:regData.f,l:regData.l,em:regData.em,pos:regData.pos,
-      deptId:regData.deptId,badge:'',ph:'',yrs:'',addr:'',ecn:'',ecp:'',photo:null};
+
+    // Step 3: Save user profile to Firestore users collection
+    const newUser={
+      id:uid, f:regData.f, l:regData.l, em:regData.em, pos:regData.pos,
+      deptId:regData.deptId, badge:'', ph:'', yrs:'',
+      addr:'', ecn:'', ecp:'', photo:null
+    };
     await fbSaveUser(newUser);
-    _cache['__users']=[newUser];
+
+    // Step 4: Save personnel record to dept sub-collection
+    // Must use explicit deptId — CU is not set yet during registration
+    const deptId=regData.deptId;
+    const persId=uid+'_p';
+    const persRec={
+      id:persId, f:regData.f, l:regData.l, em:regData.em,
+      pos:regData.pos, ph:'', badge:'', yrs:'', addr:'',
+      ecn:'', ecp:'', status:'Active', deptId
+    };
+    // Write directly to Firestore path — no CU dependency
+    await window.fbSetDoc(
+      `depts/${deptId}/personnel/${persId}`,
+      persRec, {merge:true}
+    );
+
+    // Step 5: Mark join code used
     if(regData.joinCode){
-      const depts=getDepts();
-      const dept=depts.find(d=>d.id===regData.deptId);
-      if(dept) useCode(dept.id, regData.joinCode);
+      try{
+        const deptDoc=await window.fbGetDoc(`depts/${deptId}`);
+        if(deptDoc.exists()){
+          const deptData=deptDoc.data();
+          const codes=(deptData.joinCodes||[]).map(c=>
+            c.code===regData.joinCode ? {...c,used:true,usedBy:uid} : c
+          );
+          await window.fbSetDoc(`depts/${deptId}`,{joinCodes:codes},{merge:true});
+        }
+      }catch(e){ console.warn('Code mark error',e); }
     }
-    const persRec={id:uid+'_p',f:regData.f,l:regData.l,em:regData.em,
-      pos:regData.pos,ph:'',badge:'',yrs:'',addr:'',ecn:'',ecp:'',
-      status:'Active',deptId:regData.deptId};
-    upsertRecord('personnel',persRec);
+
+    toast('Profile saved — loading your department...','');
+
+    // Step 6: Login — loadAllDeptData will now find the personnel record
     await loginAs(newUser);
+
   }catch(err){
+    console.error('Registration error:',err);
     if(err.code==='auth/email-already-in-use')
       toast('That email is already registered — sign in instead','err');
     else toast('Registration error: '+err.message,'err');
@@ -1487,9 +1646,16 @@ async function doLogin(){
   if(loginBtn){loginBtn.textContent='Signing in...';loginBtn.disabled=true;}
   try{
     const cred=await window.fbSignIn(em,pw);
-    const userData=await fbLoadUser(cred.user.uid);
+    let userData=await fbLoadUser(cred.user.uid);
     if(!userData){
-      toast('Account not found — please register','err');
+      // Auth account exists but Firestore profile missing — create it now
+      // This fixes members whose profile save failed during registration
+      userData={id:cred.user.uid,f:em.split('@')[0],l:'',em:em,
+        pos:'Firefighter',deptId:'',badge:'',ph:'',yrs:'',
+        addr:'',ecn:'',ecp:'',photo:null};
+      toast('Account found — please complete your profile','warn');
+      // We can't log them in without a deptId — show helpful message
+      toast('Account setup incomplete. Ask your admin to add you manually in Personnel, or re-register.','err');
       await window.fbSignOut();
       if(loginBtn){loginBtn.textContent='🔐 Sign In';loginBtn.disabled=false;}
       return;
@@ -1505,21 +1671,206 @@ async function doLogin(){
 
 async function loginAs(userData){
   CU={...userData, isAdmin:ADMIN_ROLES.includes(userData.pos)};
-  toast('Loading your department...','');
+  toast('Loading department...','');
   try{
     const dept=await fbLoadDept(CU.deptId);
     _cache['__depts']=dept?[dept]:[];
+    // Load initial data synchronously so first render has content
     await loadAllDeptData();
+    await syncPersonnelFromUsers();
+
+    // Render the app
     enterApp();
+
+    // Start ALL real-time listeners — from this point every device stays in sync
+    startAllListeners();
   }catch(e){
-    toast('Error loading department: '+e.message,'err');
+    console.error('loginAs error:',e);
+    toast('Login error: '+e.message,'err');
   }
+}
+
+// Build personnel cache from users collection
+// users collection is the single source of truth for members
+async function syncPersonnelFromUsers(){
+  if(!CU?.deptId) return;
+  try{
+    // Try reading the whole users collection
+    const snap=await window.fbGetCol('users');
+    const members=[];
+    snap.forEach(d=>{
+      const u={...d.data(), id:d.id};
+      if(u.deptId===CU.deptId && u.f){
+        members.push({
+          id:u.id, f:u.f, l:u.l||'', em:u.em||'',
+          pos:u.pos||'Member', ph:u.ph||'', badge:u.badge||'',
+          yrs:u.yrs||'', addr:u.addr||'', ecn:u.ecn||'',
+          ecp:u.ecp||'', status:'Active', deptId:u.deptId
+        });
+      }
+    });
+
+    if(members.length===0 && CU.id){
+      // Collection read returned nothing — likely a Firestore rules block
+      // Fall back: read current user's own doc (always allowed) 
+      // and build a single-member list
+      const mySnap=await window.fbGetDoc(`users/${CU.id}`);
+      if(mySnap.exists()){
+        const u=mySnap.data();
+        members.push({
+          id:CU.id, f:u.f||CU.f, l:u.l||CU.l||'', em:u.em||CU.em||'',
+          pos:u.pos||CU.pos||'Member', ph:u.ph||'', badge:u.badge||'',
+          yrs:u.yrs||'', addr:u.addr||'', ecn:u.ecn||'',
+          ecp:u.ecp||'', status:'Active', deptId:CU.deptId
+        });
+      } else {
+        // Last resort: use CU directly
+        members.push({
+          id:CU.id, f:CU.f, l:CU.l||'', em:CU.em||'',
+          pos:CU.pos||'Member', ph:CU.ph||'', badge:CU.badge||'',
+          yrs:CU.yrs||'', addr:CU.addr||'', ecn:CU.ecn||'',
+          ecp:CU.ecp||'', status:'Active', deptId:CU.deptId
+        });
+      }
+      console.warn('Users collection read blocked — showing current user only. Fix Firestore rules.');
+    }
+
+    _cache['personnel']=members;
+    console.log('Personnel loaded:',members.length,'members for dept',CU.deptId);
+  }catch(e){
+    // If all else fails, at least show the current user
+    console.error('syncPersonnelFromUsers error:',e);
+    _cache['personnel']=[{
+      id:CU.id, f:CU.f, l:CU.l||'', em:CU.em||'',
+      pos:CU.pos||'Member', ph:CU.ph||'', badge:CU.badge||'',
+      yrs:CU.yrs||'', addr:CU.addr||'', ecn:'', ecp:'',
+      status:'Active', deptId:CU.deptId
+    }];
+  }
+}
+
+// ── Force-sync all personnel to Firestore (one-time fix for existing members) ──
+async function forceSyncPersonnel(){
+  if(!CU?.isAdmin){ toast('Admin only','err'); return; }
+  const btn=document.querySelector('#pers-sync-banner .btn');
+  if(btn){ btn.textContent='Syncing...'; btn.disabled=true; }
+  toast('Syncing all members to cloud...','');
+
+  // Pull from ALL possible sources: localStorage (old data), cache, and current user
+  const sources=[];
+
+  // 1. Old localStorage data (pre-Firebase migration)
+  try{
+    const ls=localStorage.getItem('fc_personnel');
+    if(ls){ const parsed=JSON.parse(ls); if(Array.isArray(parsed)) sources.push(...parsed); }
+  }catch(e){}
+
+  // 2. Current cache
+  const cached=_cache['personnel']||[];
+  sources.push(...cached);
+
+  // 3. Always include the currently logged-in user
+  sources.push({
+    id:CU.id+'_p', f:CU.f, l:CU.l, em:CU.em,
+    pos:CU.pos, ph:CU.ph||'', badge:CU.badge||'',
+    yrs:CU.yrs||'', addr:CU.addr||'', ecn:CU.ecn||'',
+    ecp:CU.ecp||'', status:'Active', deptId:CU.deptId
+  });
+
+  // Deduplicate by email
+  const seen=new Set();
+  const unique=sources.filter(r=>{
+    if(!r||!r.f) return false;
+    const key=(r.em||r.id||'').toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  let count=0;
+  for(const rec of unique){
+    rec.deptId=rec.deptId||CU.deptId;
+    rec.status=rec.status||'Active';
+    // Ensure string ID for Firestore document ID
+    const docId=String(rec.id||rec.em||Date.now());
+    rec.id=docId;
+    try{
+      await window.fbSetDoc(`depts/${CU.deptId}/personnel/${docId}`,rec,{merge:true});
+      count++;
+    }catch(e){ console.warn('Sync failed for',rec.f,e); }
+  }
+
+  // Reload from Firestore to confirm and update UI
+  await fbLoadCol('personnel');
+  rPers(); updateDashStats();
+  const banner=G('pers-sync-banner');
+  if(banner) banner.style.display='none';
+  toast(`Synced ${count} members to cloud ✓`,'ok');
+}
+
+// Check on login if Firestore personnel is missing data — auto-sync if admin
+async function checkPersonnelSync(){
+  if(!CU?.deptId) return;
+  try{
+    const snap=await window.fbGetCol(`depts/${CU.deptId}/personnel`);
+    const firestoreCount=snap.size||0;
+
+    // Check localStorage for old data
+    let localCount=0;
+    try{
+      const ls=localStorage.getItem('fc_personnel');
+      if(ls){ const p=JSON.parse(ls); localCount=Array.isArray(p)?p.filter(r=>r.deptId===CU.deptId).length:0; }
+    }catch(e){}
+
+    const cacheCount=(_cache['personnel']||[]).length;
+    const maxKnown=Math.max(localCount,cacheCount);
+
+    if(firestoreCount===0 || (maxKnown>0 && firestoreCount<maxKnown)){
+      if(CU.isAdmin){
+        // Auto-sync silently for admins
+        await forceSyncPersonnel();
+      } else {
+        // Show banner for non-admins
+        const banner=G('pers-sync-banner');
+        if(banner) banner.style.display='block';
+      }
+    }
+  }catch(e){ console.warn('checkPersonnelSync error',e); }
+}
+
+// Live Firestore listener — personnel roster updates in real-time
+// for all connected devices when someone new registers
+let _persUnsub=null;
+function startPersonnelListener(){
+  if(_persUnsub) _persUnsub();
+  if(!CU?.deptId) return;
+  // Listen on users collection — fires immediately and on every change
+  _persUnsub=window.fbListen('users',(docs)=>{
+    const members=docs
+      .filter(u=>u.deptId===CU.deptId && u.f)
+      .map(u=>({
+        id:u.id, f:u.f, l:u.l||'', em:u.em||'',
+        pos:u.pos||'Member', ph:u.ph||'', badge:u.badge||'',
+        yrs:u.yrs||'', addr:u.addr||'', ecn:u.ecn||'',
+        ecp:u.ecp||'', status:'Active', deptId:u.deptId
+      }));
+    // Always update cache with whatever listener returns
+    _cache['personnel']=members;
+    const count=members.length;
+    // Update all member count displays
+    ['dash-mbr','dp-mbrs'].forEach(id=>{
+      const el=G(id); if(el) el.textContent=count;
+    });
+    // Refresh roster if visible
+    if(G('pg-pers')?.classList.contains('on')) rPers();
+    console.log('Personnel listener fired:',count,'members');
+  });
 }
 
 function enterApp(){
   try{
     syncSidebar(); applyPerms(); renderAll(); startClock();
     showScreen('sa'); toast('Welcome, '+CU.f+'!','ok');
+
     setTimeout(geocodeMissingIncidents, 1500);
   }catch(err){
     console.error('enterApp error:',err);
@@ -1555,7 +1906,10 @@ async function regeocodeAll(){
 
 
 function doLogout(){
-  CU=null; _cache.__depts=[];
+  stopAllListeners();
+  CU=null;
+
+  Object.keys(_cache).forEach(k=>delete _cache[k]);
   if(leafletMap){leafletMap.remove();leafletMap=null;}
   window.fbSignOut().catch(()=>{});
   showScreen('sl');
@@ -1846,8 +2200,11 @@ function renderAll(){
 }
 
 function updateDashStats(){
+  // Just read cache — personnel is kept fresh by syncPersonnelFromUsers called at login
   const incs=getDeptData('incidents'); const drones=getDeptData('drones');
-  const pers=getDeptData('personnel').filter(p=>p.status==='Active');
+  const pers=(_cache['personnel']||[]).filter(p=>
+    (!p.deptId||p.deptId===CU?.deptId)
+  );
   const grants=getDeptData('grants').filter(g=>g.status==='In Progress'||g.status==='Submitted');
   G('dash-inc').textContent=incs.length; G('stat-drone').textContent=drones.length;
   G('dash-eq').textContent=getDeptData('equipment').length; G('dash-mbr').textContent=pers.length;
@@ -1859,6 +2216,8 @@ function updateDashStats(){
   const dept=getDept(CU.deptId)||{};
   G('dp-st-cnt').textContent=(dept.stations||[]).length;
   G('dp-eq-cnt').textContent=getDeptData('equipment').filter(e=>e.type==='Apparatus').length;
+  // Also refresh personnel list if on that page
+  if(G('pg-pers')?.classList.contains('on')) rPers();
 }
 
 // ═══ BADGE HELPERS ═══
@@ -2000,7 +2359,12 @@ function rMaint(){G('maint-tb').innerHTML=(getDeptData('maintenance')||[]).map(r
   <td><div class="ac">${eb(`eMaint(${r.id})`)}</div></td>
 </tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--txtm);font-family:var(--fm);font-size:11px;letter-spacing:2px">NO MAINTENANCE RECORDS</td></tr>`;}
 
-function rPers(){G('pers-grid').innerHTML=(getDeptData('personnel')||[]).map(r=>{
+function rPers(){
+  // Show all personnel in cache for this dept — also catch records where deptId may be missing
+  const all=(_cache['personnel']||[]).filter(r=>
+    !r.deptId || r.deptId===CU?.deptId
+  );
+  G('pers-grid').innerHTML=(all||[]).map(r=>{
   const isA=ADMIN_ROLES.includes(r.pos);
   return`<div class="pcard">
     <div class="pav">${r.f[0]}${r.l[0]}</div>
@@ -2189,6 +2553,8 @@ function loadUserPro(){
   sel('ppos',CU.pos);
   const pp=G('ppos'); if(pp){pp.disabled=!CU.isAdmin;pp.style.opacity=CU.isAdmin?'1':'.5';pp.style.cursor=CU.isAdmin?'pointer':'not-allowed';}
   const pn=G('prolenote'); if(pn) pn.style.display=CU.isAdmin?'block':'none';
+  // Sync theme toggle to current state
+  syncThemeToggle();
 }
 
 function saveProfile(){
@@ -2306,6 +2672,9 @@ function savePers(){
   const d={f:G('pers-f').value,l:G('pers-l').value,em:G('pers-em').value,pos:G('pers-pos').value,ph:G('pers-ph').value,badge:G('pers-badge').value,yrs:G('pers-yrs').value,addr:G('pers-addr').value,ecn:G('pers-ecn').value,ecp:G('pers-ecp').value,status:G('pers-status').value,deptId:CU.deptId};
   d.id=eid||++uid;
   upsertRecord('personnel',d);
+  // Also update users collection so the live listener picks it up
+  const userMatch=(_cache['__users']||[]).find(u=>u.em&&u.em.toLowerCase()===d.em.toLowerCase()&&u.deptId===CU.deptId);
+  if(userMatch){ fbSaveUser({...userMatch,...{f:d.f,l:d.l,ph:d.ph,badge:d.badge,yrs:d.yrs,pos:d.pos,addr:d.addr,ecn:d.ecn,ecp:d.ecp}}).catch(()=>{}); }
   // Sync to users table so login profile stays in sync
   const users=getUsers();
   const uIdx=users.findIndex(u=>u.em.toLowerCase()===d.em.toLowerCase()&&u.deptId===CU.deptId);
@@ -2408,7 +2777,7 @@ function go(page,el){
   document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
   if(el) el.classList.add('on');
   const pg=G('pg-'+page); if(pg) pg.classList.add('on');
-  if(page==='userpro') loadUserPro();
+  if(page==='userpro'){ loadUserPro(); setTimeout(syncThemeToggle,50); }
   if(page==='map'){
     setTimeout(()=>{
       if(typeof L === 'undefined'){ toast('Map library still loading, try again in a moment','warn'); return; }
@@ -2418,6 +2787,11 @@ function go(page,el){
   }
   if(page==='deptpro'){ rDeptPro(); renderCodes(); }
   if(page==='fin'){ rFin(); }
+  // Live Firestore refresh — personnel and dashboard always show newest members
+  if(page==='pers'){
+    fbLoadCol('personnel').then(()=>{ rPers(); updateDashStats(); });
+  }
+  if(page==='dash'){ updateDashStats(); }
   // Sync mobile bottom nav highlight
   const _mmap={dash:'mni-dash',inc:'mni-inc',map:'mni-map',minutes:'mni-minutes',
     drone:'mni-drone',deptpro:'mni-deptpro',events:'mni-events',equip:'mni-equip',
@@ -2528,6 +2902,9 @@ function waitForFB(cb){
   if(window.FB_READY) cb();
   else document.addEventListener('fb-ready', cb, {once:true});
 }
+// Apply saved theme immediately on load
+initTheme();
+
 waitForFB(()=>{
   window.fbOnAuth(async user=>{
     if(user){
@@ -2570,6 +2947,43 @@ function closeMobMore(){
 }
 // Sync mobile nav when desktop nav is used
 
+
+// ── THEME / DARK-LIGHT MODE ──
+function toggleTheme(isLight){
+  if(isLight){
+    document.body.classList.add('light-mode');
+    localStorage.setItem('fc_theme','light');
+  } else {
+    document.body.classList.remove('light-mode');
+    localStorage.setItem('fc_theme','dark');
+  }
+  const mc=document.querySelector('meta[name="theme-color"]');
+  if(mc) mc.content=isLight?'#ffffff':'#ff4500';
+  syncThemeToggle();
+}
+
+function initTheme(){
+  const saved=localStorage.getItem('fc_theme');
+  const prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;
+  // Use saved pref, fall back to system preference (default dark)
+  const useDark = saved ? saved==='dark' : true;
+  toggleTheme(!useDark);
+}
+
+function syncThemeToggle(){
+  const isLight=document.body.classList.contains('light-mode');
+  // Profile page toggle
+  const tog=G('theme-toggle');
+  if(tog) tog.checked=isLight;
+  const lbl=G('theme-label');
+  if(lbl) lbl.textContent=isLight?'☀️ Light':'🌑 Dark';
+  // Mobile More sheet button
+  const mIcon=G('mob-theme-icon');
+  const mTxt=G('mob-theme-txt');
+  if(mIcon) mIcon.textContent=isLight?'🌑':'☀️';
+  if(mTxt)  mTxt.textContent=isLight?'Dark Mode':'Light Mode';
+
+}
 
 // Register service worker for PWA
 if('serviceWorker' in navigator){
